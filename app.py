@@ -34,7 +34,7 @@ def get_asana_client():
         with open(token_file, 'r') as fobj:
             token = json.load(fobj)
     else:
-        token = json.load(os.environ['ASANA_OAUTH_TOKEN'])
+        token = json.loads(os.environ['ASANA_OAUTH_TOKEN'])
         save_token(token)
 
     return asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID, token=token,
