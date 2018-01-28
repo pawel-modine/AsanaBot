@@ -7,7 +7,6 @@ import github
 
 ASANA_CLIENT_ID = ''
 ASANA_SECRET_ID = ''
-GITHUB_TOKEN = ''
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
