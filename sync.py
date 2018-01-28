@@ -114,7 +114,7 @@ class AsanaSync:
             task_id = self.find_task(issue)
             task = self._client.tasks.update(task_id, sync_attrs)
         except ValueError:
-            if issue.state == 'open' and issue.milestone is not None:
+            if should_make_new_task(issue):
                 project = self.find_project(workspace, repo.name)['id']
                 task = self.create_task(workspace, project, issue, sync_attrs)
             else:
@@ -139,6 +139,25 @@ class AsanaSync:
                   'tags': [github_tag]}
         params.update(attrs)
         return self._client.tasks.create_in_workspace(workspace, params)
+
+
+def should_make_new_task(issue):
+    """Decide whether a new Task is justified at this time."""
+    # We don't make *new* tasks for closed issues
+    if issue.state != 'open':
+        return False
+
+    # Always want to have a new task for an open PR
+    if issue.pull_request is not None:
+        return True
+
+    # If this issue lacks a milestone, but there are milestones for the
+    # repository, don't make a new issue
+    if issue.milestone is None and any(issue.repository.get_milestones()):
+        return False
+
+    return True
+
 
 def issue_to_id(issue):
     """Create a unique id from an issue."""
