@@ -9,6 +9,8 @@ import github
 from sync import AsanaSync
 
 app = Flask(__name__)
+github_client = github.Github(os.environ.get('GITHUB_TOKEN'))
+syncer = AsanaSync(get_asana_client())
 
 @app.route('/')
 def hello():
@@ -48,5 +50,3 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
     
-    github_client = github.Github(os.environ.get('GITHUB_TOKEN'))
-    syncer = AsanaSync(get_asana_client())
