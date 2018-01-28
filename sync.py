@@ -117,6 +117,8 @@ class AsanaSync:
             if issue.state == 'open' and issue.milestone is not None:
                 project = self.find_project(workspace, repo.name)['id']
                 task = self.create_task(workspace, project, issue, sync_attrs)
+            else:
+                task = {}
 
         return task
 
