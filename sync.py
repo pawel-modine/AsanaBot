@@ -152,9 +152,9 @@ def should_make_new_task(issue):
         return True
 
     # If this issue lacks a milestone, but there are milestones for the
-    # repository, don't make a new issue
+    # repository, don't make a new issue--unless it's assigned
     if issue.milestone is None and any(issue.repository.get_milestones()):
-        return False
+        return issue.assignee is not None
 
     return True
 
