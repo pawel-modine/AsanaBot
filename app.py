@@ -18,7 +18,8 @@ def hello():
 def sync():
     payload = request.get_json()
     event = github_client.create_from_raw_data(github.IssueEvent.IssueEvent, payload)
-    return syncer.sync_issue(event.issue)
+    task = syncer.sync_issue(event.issue)
+    return task
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
