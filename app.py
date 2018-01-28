@@ -3,7 +3,7 @@ import os
 import os.path
 
 import asana
-from flask import Flask, redirect, request, session
+from flask import Flask, jsonify, redirect, request, session
 import github
 
 from sync import AsanaSync
@@ -19,7 +19,7 @@ def sync():
     payload = request.get_json()
     event = github_client.create_from_raw_data(github.IssueEvent.IssueEvent, payload)
     task = syncer.sync_issue(event.issue)
-    return task
+    return jsonify(task)
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
