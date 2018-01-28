@@ -68,7 +68,7 @@ class AsanaSync:
         """Find the project to go with the repository."""
         repo = repo.lower()
         for project in self._client.projects.find_all({'workspace': workspace}):
-            if project['name'].lower() == repo:
+            if project['name'].lower().replace(' ', '-') == repo:
                 return project
         raise ValueError('Could not find appropriate project for: {}'.format(repo))
 
