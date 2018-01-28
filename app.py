@@ -1,4 +1,6 @@
+import json
 import os
+
 from flask import Flask, request
 
 app = Flask(__name__)
@@ -9,7 +11,8 @@ def hello():
 
 @app.route('/sync', methods=['POST'])
 def sync():
-    return str(request.json)
+    payload = request.get_json()
+    return json.dumps(payload)
 
 if __name__ == '__main__':
     # Bind to PORT if defined, otherwise default to 5000.
