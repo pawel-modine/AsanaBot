@@ -7,8 +7,10 @@ import github
 
 ASANA_CLIENT_ID = ''
 ASANA_SECRET_ID = ''
+GITHUB_TOKEN = ''
 
 def get_asana_client():
+    """Handle the details of setting up OAUTH2 access to Asana."""
     token_file = 'asana-token'
     def save_token(token):
         with open(token_file, 'w') as fobj:
@@ -20,7 +22,7 @@ def get_asana_client():
             return asana.Client.oauth(client_id=ASANA_CLIENT_ID, token=token)
     except IOError:
         asana_client = asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID,
-                                        redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                                          redirect_uri='urn:ietf:wg:oauth:2.0:oob')
         url, state = asana_client.session.authorization_url()
 
         print(url)
@@ -34,20 +36,19 @@ def get_asana_client():
                                   token_updater=save_token)
 
 
-def get_issues(org, repo, assigned=False, milestoned=True):
+def get_issues(org, repo):
+    """Get the relevant issues that need to be synced to Asana."""
     org = github_client.get_organization(org)
     repo = org.get_repo(repo)
-    for issue in repo.get_issues():
-        if assigned and not issue.assignee:
-            continue
-        if milestoned and not issue.milestone:
-            continue
-        if issue.state == 'open':
-            yield issue
+    for ind, issue in enumerate(repo.get_issues(state='all')):
+        yield issue
+        if ind > 1:
             break
 
-def parse_payload(req):
-    pass
+
+def parse_payload(request):
+    """Parse GitHub webhook payload to get the updated issue."""
+    raise NotImplementedError
 
 
 @lru_cache()
@@ -93,22 +94,39 @@ def find_github_tag(workspace: int):
 
 
 @lru_cache()
-def github_to_asana_user(user):
-    pass
+def github_to_asana_user(workspace: int, github_user: str):
+    """Figure out the Asana user that corresponds to a GitHub user."""
+    for user in asana_client.users.find_by_workspace(workspace):
+        if user['name'] == github_user:
+            return user
+    return 'null'
 
 
 def sync_issue(issue):
-    print(issue.title)
+    """Synchronize a GitHub issue to an Asana task.
+
+    Either create a new task or update attributes of existing task.
+    """
+    repo = issue.repository
+    org = repo.organization
+    workspace = find_workspace(org.name)['id']
+
+    sync_attrs = {}
+    if issue.assignee:
+        sync_attrs['assignee'] = github_to_asana_user(workspace, issue.assignee.name)
+    else:
+        sync_attrs['assignee'] = 'null'
+
+    sync_attrs['completed'] = issue.state == 'closed'
 
     # Find the Asana task that goes with this issue
     try:
         task = find_task(issue)
-        asana_client.tasks.update(task, {})
+        asana_client.tasks.update(task, sync_attrs)
     except ValueError:
-        repo = issue.repository
-        org = issue.repository.organization
-        workspace, project = get_ids(org.name, repo.name)
-        task = create_task(workspace, project, issue)
+        if issue.state == 'open' and issue.milestone is not None:
+            project = find_project(workspace, repo.name)['id']
+            task = create_task(workspace, project, issue, sync_attrs)
 
 
 def find_task(issue):
@@ -120,26 +138,26 @@ def find_task(issue):
 
 
 def issue_to_id(issue):
-    """Create a unique id from an issue"""
+    """Create a unique id from an issue."""
     return '{0.repository.organization.name}-{0.repository.name}-{0.number:d}'.format(issue)
 
 
-def create_task(workspace: int, project: int, issue):
-    """Create a task corresponding to the """
+def create_task(workspace: int, project: int, issue, attrs: dict):
+    """Create a task corresponding to a GitHub issue."""
     github_tag = find_github_tag(workspace)
-    return asana_client.tasks.create_in_workspace(workspace,
-                                                  {'external': {'id': issue_to_id(issue)},
-                                                   'name': '{0.title} (#{0.number})'.format(issue),
-                                                   'notes': '\n'.join((issue.body, issue.html_url)),
-                                                   'projects': [project],
-                                                   'tags': [github_tag]})
+    params = {'external': {'id': issue_to_id(issue)},
+              'name': '{0.title} (#{0.number})'.format(issue),
+              'notes': '\n\n'.join((issue.html_url, issue.body)),
+              'projects': [project],
+              'tags': [github_tag]}
+    params.update(attrs)
+    return asana_client.tasks.create_in_workspace(workspace, params)
 
 
 if __name__ == '__main__':
     asana_client = get_asana_client()
-    github_client = github.Github('')
+    github_client = github.Github(GITHUB_TOKEN)
 
-    # TODO: These need to be pulled from the github payload
     rate = github_client.get_rate_limit().rate
     print('API calls remaining: {0} (Resets at {1})'.format(rate.remaining, rate.reset))
 
@@ -148,6 +166,3 @@ if __name__ == '__main__':
 
     for issue in get_issues(org, repo):
         sync_issue(issue)
-
-    rate = github_client.get_rate_limit().rate
-    print('API calls remaining: {0} (Resets at {1})'.format(rate.remaining, rate.reset))
