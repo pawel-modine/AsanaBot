@@ -112,7 +112,7 @@ class AsanaSync:
         # Find the Asana task that goes with this issue
         try:
             task_id = self.find_task(issue)
-            task = self._client.tasks.update(task, sync_attrs)
+            task = self._client.tasks.update(task_id, sync_attrs)
         except ValueError:
             if issue.state == 'open' and issue.milestone is not None:
                 project = self.find_project(workspace, repo.name)['id']
