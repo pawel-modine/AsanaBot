@@ -118,6 +118,8 @@ class AsanaSync:
                 project = self.find_project(workspace, repo.name)['id']
                 task = self.create_task(workspace, project, issue, sync_attrs)
 
+        return task
+
     def find_task(self, issue):
         """Find task corresponding to the issue."""
         try:
