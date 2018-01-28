@@ -6,12 +6,12 @@ import sys
 import asana
 import github
 
-ASANA_CLIENT_ID = ''
-ASANA_SECRET_ID = ''
-
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
+    ASANA_CLIENT_ID = os.environ['ASANA_CLIENT_ID']
+    ASANA_SECRET_ID = os.environ['ASANA_CLIENT_SECRET']
     token_file = 'asana-token'
+
     def save_token(token):
         with open(token_file, 'w') as fobj:
             fobj.write(json.dumps(token))
