@@ -8,6 +8,7 @@ import github
 
 import logging
 logger = logging.Logger('sync')
+logger.addHandler(logging.StreamHandler())
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
