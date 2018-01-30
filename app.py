@@ -25,6 +25,7 @@ def sync():
         task = syncer.sync_issue(event.issue)
         return jsonify(task)
     else:
+        logger.debug('Event had no issue. %s', str(payload)[:100])
         return jsonify({})
 
 def get_asana_client():
