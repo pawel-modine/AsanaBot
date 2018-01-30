@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import os.path
 
@@ -6,9 +7,10 @@ import asana
 from flask import Flask, jsonify, redirect, request, session
 import github
 
-from sync import AsanaSync
+from sync import AsanaSync, logger
 
 app = Flask(__name__)
+logger.setLevel(logging.DEBUG)
 
 @app.route('/')
 def hello():
@@ -19,6 +21,7 @@ def sync():
     payload = request.get_json()
     event = github_client.create_from_raw_data(github.IssueEvent.IssueEvent, payload)
     if event.issue is not None:
+        logger.debug('Syncing: %s (%d)', event.issue.title, event.issue.number)
         task = syncer.sync_issue(event.issue)
         return jsonify(task)
     else:

@@ -6,6 +6,9 @@ import sys
 import asana
 import github
 
+import logging
+logger = logging.Logger('sync')
+
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
     ASANA_CLIENT_ID = os.environ['ASANA_CLIENT_ID']
@@ -99,6 +102,8 @@ class AsanaSync:
         """
         repo = issue.repository
         org = repo.organization
+
+        logger.debug('Syncing for %s/%s', org, repo)
         workspace = self.find_workspace(org.name)['id']
 
         sync_attrs = {}
@@ -109,15 +114,20 @@ class AsanaSync:
 
         sync_attrs['completed'] = issue.state == 'closed'
 
+        logger.debug('Syncing attributes: %s', str(sync_attrs))
+
         # Find the Asana task that goes with this issue
         try:
             task_id = self.find_task(issue)
+            logger.debug('Found task: %d', task_id)
             task = self._client.tasks.update(task_id, sync_attrs)
         except ValueError:
             if should_make_new_task(issue):
+                logger.debug('Creating new task.')
                 project = self.find_project(workspace, repo.name)['id']
                 task = self.create_task(workspace, project, issue, sync_attrs)
             else:
+                logger.debug('No task created.')
                 task = {}
 
         return task
