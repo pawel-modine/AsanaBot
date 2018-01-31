@@ -96,6 +96,14 @@ class AsanaSync:
                 return user
         return 'null'
 
+    @lru_cache()
+    def find_done_section(self, project: int):
+        """Find the done section of a project if there is one"""
+        for section in self._client.projects.sections(project):
+            if section['name'].lower() == 'done':
+                return section['id']
+        return None
+
     def sync_issue(self, issue):
         """Synchronize a GitHub issue to an Asana task.
 
@@ -106,6 +114,7 @@ class AsanaSync:
 
         logger.debug('Syncing for %s/%s', org, repo)
         workspace = self.find_workspace(org.name)['id']
+        project = self.find_project(workspace, repo.name)['id']
 
         sync_attrs = {}
         if issue.assignee:
@@ -122,10 +131,16 @@ class AsanaSync:
             task_id = self.find_task(issue)
             logger.debug('Found task: %d', task_id)
             task = self._client.tasks.update(task_id, sync_attrs)
+
+            # If we completed, try to move to Done section
+            if sync_attrs['completed']:
+                done_section = self.find_done_section(project)
+                if done_section is not None:
+                    self._client.tasks.add_project(task_id, {'project': project,
+                                                             'section': done_section})
         except ValueError:
             if should_make_new_task(issue):
                 logger.debug('Creating new task.')
-                project = self.find_project(workspace, repo.name)['id']
                 task = self.create_task(workspace, project, issue, sync_attrs)
             else:
                 logger.debug('No task created.')
