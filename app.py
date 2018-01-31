@@ -23,10 +23,15 @@ def sync():
     if event.issue is not None:
         logger.debug('Syncing: %s (%d)', event.issue.title, event.issue.number)
         task = syncer.sync_issue(event.issue)
-        return jsonify(task)
+    elif 'pull_request' in payload:
+        repo = github_client.get_repo(payload['repository']['full_name'])
+        pr = repo.get_issue(payload['number'])
+        logger.debug('Syncing pull request: %s (%d)', pr.title, pr.number)
+        task = syncer.sync_issue(pr)
     else:
         logger.debug('Event had no issue. %s', str(payload)[:100])
-        return jsonify({})
+        task = {}
+    return jsonify(task)
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
