@@ -7,7 +7,7 @@ import asana
 from flask import Flask, jsonify, redirect, request, session
 import github
 
-from sync import AsanaSync, logger
+from chalicelib.sync import AsanaSync, logger
 
 app = Flask(__name__)
 logger.setLevel(logging.DEBUG)
