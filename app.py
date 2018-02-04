@@ -15,6 +15,14 @@ app.log.setLevel(logging.DEBUG)
 def hello():
     return 'Hello World!'
 
+@app.route('/github/auth')
+def github_auth():
+    return 'Handle authorization'
+
+@app.route('/github/setup')
+def github_setup():
+    return 'Handle setup'
+
 @app.route('/hooks/github', methods=['POST'])
 def sync():
     try:
