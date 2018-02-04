@@ -7,12 +7,12 @@ import os.path
 import secrets
 
 import asana
-from chalice import Chalice, UnauthorizedError
+from flask import Flask, Response, jsonify, request
 
-from chalicelib.sync import AsanaSync, IssueInfo
+from sync import AsanaSync, IssueInfo
 
-app = Chalice(app_name='asana-sync')
-app.log.setLevel(logging.DEBUG)
+app = Flask('asana-sync')
+
 
 @app.route('/')
 def hello():
@@ -36,21 +36,25 @@ def github_setup():
 
 @app.route('/hooks/github', methods=['POST'])
 def sync():
-    check_signature(app.current_request)
     try:
+        if not 'localhost' in request.url_root:
+            check_signature(request)
         task = {}
-        body = app.current_request.json_body
+        body = request.get_json()
         headers = {'Accept': 'application/vnd.github.machine-man-preview+json'}
         issue = IssueInfo.from_json(body, api_headers=headers)
-        app.log.debug('Handling issue: %s', issue)
+        app.logger.debug('Handling issue: %s', issue)
         task = syncer.sync_issue(issue)
     except ValueError:
-        app.log.info('Unhandled json event type: %s', json.dumps(body)[:100])
+        app.logger.info('Unhandled json event type: %s', json.dumps(body)[:100])
         task['message'] = 'Not an event for me.'
+    except UnauthorizedError as e:
+        app.logger.debug('Handling unauthorized access.')
+        return Response(str(e), 401)
     except Exception as e:
-        app.log.exception('Exception:', exc_info=e)
+        app.logger.exception('Exception:', exc_info=e)
         raise e
-    return task
+    return jsonify(task)
 
 
 def check_signature(request):
@@ -59,9 +63,9 @@ def check_signature(request):
 
     alg, header_sig = request.headers['X-HUB-SIGNATURE'].split('=')
     digest = hmac.HMAC(os.environ['GITHUB_WEBHOOK_SECRET'].encode('ascii'),
-                       request.raw_body, digestmod=getattr(hashlib, alg))
+                       request.data, digestmod=getattr(hashlib, alg))
     sig = digest.hexdigest()
-    app.log.debug('Comparing signatures. Got: %s Calculated: %s', header_sig, sig)
+    app.logger.debug('Comparing signatures. Got: %s Calculated: %s', header_sig, sig)
 
     if not secrets.compare_digest(header_sig, sig):
         raise UnauthorizedError('Signatures do not match.')
@@ -71,7 +75,7 @@ def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
     ASANA_CLIENT_ID = os.environ['ASANA_CLIENT_ID']
     ASANA_SECRET_ID = os.environ['ASANA_CLIENT_SECRET']
-    token_file = os.path.join(os.path.dirname(__file__), 'chalicelib', 'asana-token')
+    token_file = os.path.join(os.path.dirname(__file__), 'asana-token')
 
     def save_token(token):
         # TODO: Write somewhere. S3?
@@ -92,3 +96,7 @@ def get_asana_client():
                               token_updater=save_token, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
 
 syncer = AsanaSync(get_asana_client())
+
+
+class UnauthorizedError(Exception):
+    pass
