@@ -4,7 +4,6 @@ import os
 import sys
 
 import asana
-import github
 
 import logging
 logger = logging.Logger('sync')
@@ -190,6 +189,7 @@ def issue_to_id(issue):
     return '{0.repository.organization.name}-{0.repository.name}-{0.number:d}'.format(issue)
 
 if __name__ == '__main__':
+    import github
     syncer = AsanaSync(get_asana_client())
     github_client = github.Github(os.environ.get('GITHUB_TOKEN'))
 

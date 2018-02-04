@@ -1,3 +1,5 @@
 .vscode
 asana-token
 env
+__pycache__
+.chalice
