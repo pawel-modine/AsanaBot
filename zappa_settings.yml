@@ -2,7 +2,7 @@ dev:
     app_function: app.app
     aws_region: us-east-1
     profile_name: default
-    project_name: asana-github
+    project_name: asana-sync
     runtime: python3.6
     s3_bucket: unidata-python
     keep_warm: false
