@@ -3,7 +3,8 @@
   "app_name": "asana-sync",
   "environment_variables": {
     "ASANA_CLIENT_ID": "",
-    "ASANA_CLIENT_SECRET": ""
+    "ASANA_CLIENT_SECRET": "",
+    "GITHUB_WEBHOOK_SECRET": ""
   },
   "tags": {
     "Group": "Python",
