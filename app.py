@@ -6,19 +6,29 @@ import os.path
 import asana
 from chalice import Chalice
 
-from chalicelib.sync import AsanaSync, logger
+from chalicelib.sync import AsanaSync, IssueInfo
 
 app = Chalice(app_name='asana-sync')
-logger.setLevel(logging.DEBUG)
+app.log.setLevel(logging.DEBUG)
 
 @app.route('/')
 def hello():
     return 'Hello World!'
 
-@app.route('/hooks/github')#, methods=['POST'])
+@app.route('/hooks/github', methods=['POST'])
 def sync():
-    payload = app.current_request.json_body
-    task = {}
+    try:
+        task = {}
+        body = app.current_request.json_body
+        issue = IssueInfo.from_json(body)
+        app.log.debug('Handling issue: %s', issue)
+        task = syncer.sync_issue(issue)
+    except ValueError:
+        app.log.info('Unhandled json event type: %s', json.dumps(body)[:100])
+        task['message'] = 'Not an event for me.'
+    except Exception as e:
+        app.log.exception('Exception:', exc_info=e)
+        raise e
     return task
 
 def get_asana_client():
@@ -28,8 +38,10 @@ def get_asana_client():
     token_file = os.path.join(os.path.dirname(__file__), 'chalicelib', 'asana-token')
 
     def save_token(token):
-        with open(token_file, 'w') as fobj:
-            fobj.write(json.dumps(token))
+        # TODO: Write somewhere. S3?
+        # with open(token_file, 'w') as fobj:
+        #     fobj.write(json.dumps(token))
+        os.environ['ASANA_OAUTH_TOKEN'] = json.dumps(token)
 
     if os.path.exists(token_file):
         with open(token_file, 'r') as fobj:

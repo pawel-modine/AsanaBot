@@ -1,13 +1,16 @@
+from collections import namedtuple
 from functools import lru_cache
 import json
 import os
 import sys
 
 import asana
+import requests
 
 import logging
 logger = logging.Logger('sync')
 logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
@@ -51,6 +54,49 @@ def get_issues(org, repo):
         if ind > 1:
             break
 
+
+_IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
+                                      'title', 'state', 'milestoned', 'assignee',
+                                      'is_pr', 'html_url', 'body', 'repo_has_milestones'])
+class IssueInfo(_IssueInfo):
+    @classmethod
+    def from_json(cls, json: dict):
+        try:
+            fields = {}
+            fields['organization'] = json['organization']['login']
+            fields['repository'] = json['repository']['name']
+            fields['repo_has_milestones'] = cls._check_for_milestones(json['repository'])
+            fields['is_pr'] = 'pull_request' in json
+            nested = json['pull_request'] if fields['is_pr'] else json['issue']
+            fields['number'] = nested['number']
+            fields['title'] = nested['title']
+            fields['state'] = nested['state']
+            fields['milestoned'] = bool(nested['milestone'])
+            fields['html_url'] = nested['html_url']
+            fields['body'] = nested['body']
+            if nested['assignee']:
+                fields['assignee'] = cls._get_user_name(nested['assignee'])
+            elif 'requested_reviewers' in nested:
+                pick = fields['number'] % len(nested['requested_reviewers'])
+                picked_user = nested['requested_reviewers'][pick]
+                fields['assignee'] = cls._get_user_name(picked_user)
+            else:
+                fields['assignee'] = None
+            return cls(**fields)
+        except KeyError as e:
+            logger.debug('Event missing something: %s', e)
+            raise ValueError('Improper event json')
+
+    @staticmethod
+    def _check_for_milestones(repo_json):
+        url = repo_json['milestones_url'].rsplit('{', maxsplit=1)[0]
+        resp = requests.get(url)
+        return bool(resp.json())
+
+    @staticmethod
+    def _get_user_name(user_json):
+        resp = requests.get(user_json['url'])
+        return resp.json()['name']
 
 class AsanaSync:
     def __init__(self, client):
@@ -103,21 +149,21 @@ class AsanaSync:
                 return section['id']
         return None
 
-    def sync_issue(self, issue):
+    def sync_issue(self, issue: IssueInfo):
         """Synchronize a GitHub issue to an Asana task.
 
         Either create a new task or update attributes of existing task.
         """
         repo = issue.repository
-        org = repo.organization
+        org = issue.organization
 
         logger.debug('Syncing for %s/%s', org, repo)
-        workspace = self.find_workspace(org.name)['id']
-        project = self.find_project(workspace, repo.name)['id']
+        workspace = self.find_workspace(org)['id']
+        project = self.find_project(workspace, repo)['id']
 
         sync_attrs = {}
         if issue.assignee:
-            sync_attrs['assignee'] = self.github_to_asana_user(workspace, issue.assignee.name)
+            sync_attrs['assignee'] = self.github_to_asana_user(workspace, issue.assignee)
         else:
             sync_attrs['assignee'] = 'null'
 
@@ -125,7 +171,15 @@ class AsanaSync:
 
         logger.debug('Syncing attributes: %s', str(sync_attrs))
 
-        # Find the Asana task that goes with this issue
+        # Create a new task if appropriate
+        try:
+            if should_make_new_task(issue):
+                return self.create_task(workspace, project, issue, sync_attrs)
+                logger.debug('Created new task.')
+        except asana.error.InvalidRequestError:  # Already exists
+            pass
+
+        # Ok, it already exists or it's not worthy of a new issue. Try syncing...
         try:
             task_id = self.find_task(issue)
             logger.debug('Found task: %d', task_id)
@@ -136,16 +190,15 @@ class AsanaSync:
                 done_section = self.find_done_section(project)
                 if done_section is not None:
                     self._client.tasks.add_project(task_id, {'project': project,
-                                                             'section': done_section})
-        except ValueError:
-            if should_make_new_task(issue):
-                logger.debug('Creating new task.')
-                task = self.create_task(workspace, project, issue, sync_attrs)
-            else:
-                logger.debug('No task created.')
-                task = {}
+                                                                'section': done_section})
 
-        return task
+            return task
+        except ValueError:
+            logger.error('Somehow could not find task for %d event though'
+                            ' we think we had a duplicate.', issue.number)
+
+        logger.debug('No task created.')
+        return {'message': 'No existing task and no new one needed at this time.'}
 
     def find_task(self, issue):
         """Find task corresponding to the issue."""
@@ -173,12 +226,12 @@ def should_make_new_task(issue):
         return False
 
     # Always want to have a new task for an open PR
-    if issue.pull_request is not None:
+    if issue.is_pr:
         return True
 
     # If this issue lacks a milestone, but there are milestones for the
     # repository, don't make a new issue--unless it's assigned
-    if issue.milestone is None and any(issue.repository.get_milestones()):
+    if not issue.milestoned and issue.repo_has_milestones:
         return issue.assignee is not None
 
     return True
@@ -186,7 +239,7 @@ def should_make_new_task(issue):
 
 def issue_to_id(issue):
     """Create a unique id from an issue."""
-    return '{0.repository.organization.name}-{0.repository.name}-{0.number:d}'.format(issue)
+    return '{0.organization}-{0.repository}-{0.number:d}'.format(issue)
 
 if __name__ == '__main__':
     import github
