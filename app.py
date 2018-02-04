@@ -4,21 +4,22 @@ import os
 import os.path
 
 import asana
-from flask import Flask, jsonify, redirect, request, session
+from chalice import Chalice
 import github
 
 from chalicelib.sync import AsanaSync, logger
 
-app = Flask(__name__)
+app = Chalice(app_name='Asana Sync')
 logger.setLevel(logging.DEBUG)
 
 @app.route('/')
 def hello():
     return 'Hello World!'
 
-@app.route('/sync', methods=['POST'])
+@app.route('/hooks/github', methods=['POST'])
 def sync():
-    payload = request.get_json()
+    #payload = request.get_json()
+    payload = app.current_request.json_body
     event = github_client.create_from_raw_data(github.IssueEvent.IssueEvent, payload)
     if event.issue is not None:
         logger.debug('Syncing: %s (%d)', event.issue.title, event.issue.number)
@@ -31,7 +32,7 @@ def sync():
     else:
         logger.debug('Event had no issue. %s', str(payload)[:100])
         task = {}
-    return jsonify(task)
+    return task
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
@@ -57,9 +58,3 @@ def get_asana_client():
 
 github_client = github.Github(os.environ.get('GITHUB_TOKEN'))
 syncer = AsanaSync(get_asana_client())
-
-if __name__ == '__main__':
-    # Bind to PORT if defined, otherwise default to 5000.
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-    
