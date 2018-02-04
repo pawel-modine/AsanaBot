@@ -229,12 +229,16 @@ def should_make_new_task(issue):
     if issue.is_pr:
         return True
 
-    # If this issue lacks a milestone, but there are milestones for the
-    # repository, don't make a new issue--unless it's assigned
-    if not issue.milestoned and issue.repo_has_milestones:
-        return issue.assignee is not None
+    # If it's been assigned, create a task
+    if issue.assignee is not None:
+        return True
 
-    return True
+    # If the repo has milestones, look at whether this issue has one assigned
+    if issue.repo_has_milestones:
+        return issue.milestoned
+
+    # Not a PR, not assigned, and no milestones--so ignore it
+    return False
 
 
 def issue_to_id(issue):
