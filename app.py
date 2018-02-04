@@ -9,7 +9,7 @@ import github
 
 from chalicelib.sync import AsanaSync, logger
 
-app = Chalice(app_name='Asana Sync')
+app = Chalice(app_name='asana-sync')
 logger.setLevel(logging.DEBUG)
 
 @app.route('/')
