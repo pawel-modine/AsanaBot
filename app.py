@@ -18,6 +18,14 @@ app.log.setLevel(logging.DEBUG)
 def hello():
     return 'Hello World!'
 
+
+# GET http://github.com/login/oauth/authorize
+# client_id
+# redirect_uri
+# state
+# https://cy0fnpradk.execute-api.us-east-1.amazonaws.com/api/github/auth
+
+
 @app.route('/github/auth')
 def github_auth():
     return 'Handle authorization'
@@ -32,7 +40,8 @@ def sync():
     try:
         task = {}
         body = app.current_request.json_body
-        issue = IssueInfo.from_json(body)
+        headers = {'Accept': 'application/vnd.github.machine-man-preview+json'}
+        issue = IssueInfo.from_json(body, api_headers=headers)
         app.log.debug('Handling issue: %s', issue)
         task = syncer.sync_issue(issue)
     except ValueError:

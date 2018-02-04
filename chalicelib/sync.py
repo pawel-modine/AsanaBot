@@ -60,12 +60,13 @@ _IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
                                       'is_pr', 'html_url', 'body', 'repo_has_milestones'])
 class IssueInfo(_IssueInfo):
     @classmethod
-    def from_json(cls, json: dict):
+    def from_json(cls, json: dict, api_headers={}):
         try:
             fields = {}
             fields['organization'] = json['organization']['login']
             fields['repository'] = json['repository']['name']
-            fields['repo_has_milestones'] = cls._check_for_milestones(json['repository'])
+            fields['repo_has_milestones'] = cls._check_for_milestones(json['repository'],
+                                                                      api_headers)
             fields['is_pr'] = 'pull_request' in json
             nested = json['pull_request'] if fields['is_pr'] else json['issue']
             fields['number'] = nested['number']
@@ -75,11 +76,11 @@ class IssueInfo(_IssueInfo):
             fields['html_url'] = nested['html_url']
             fields['body'] = nested['body']
             if nested['assignee']:
-                fields['assignee'] = cls._get_user_name(nested['assignee'])
+                fields['assignee'] = cls._get_user_name(nested['assignee'], api_headers)
             elif 'requested_reviewers' in nested:
                 pick = fields['number'] % len(nested['requested_reviewers'])
                 picked_user = nested['requested_reviewers'][pick]
-                fields['assignee'] = cls._get_user_name(picked_user)
+                fields['assignee'] = cls._get_user_name(picked_user, api_headers)
             else:
                 fields['assignee'] = None
             return cls(**fields)
@@ -88,14 +89,14 @@ class IssueInfo(_IssueInfo):
             raise ValueError('Improper event json')
 
     @staticmethod
-    def _check_for_milestones(repo_json):
+    def _check_for_milestones(repo_json, headers={}):
         url = repo_json['milestones_url'].rsplit('{', maxsplit=1)[0]
-        resp = requests.get(url)
+        resp = requests.get(url, headers=headers)
         return bool(resp.json())
 
     @staticmethod
-    def _get_user_name(user_json):
-        resp = requests.get(user_json['url'])
+    def _get_user_name(user_json, headers={}):
+        resp = requests.get(user_json['url'], headers=headers)
         return resp.json()['name']
 
 class AsanaSync:
