@@ -5,10 +5,13 @@ dev:
     project_name: asana-sync
     runtime: python3.6
     s3_bucket: unidata-python
-    keep_warm: false
-    keep_warm_expression: unschedule
+    memory_size: 128
+    keep_warm: true
+    keep_warm_expression: "rate(4 minutes)"
     tags:
         Group: Python
         Project: AsanaBot
     manage_roles: false
     role_name: AsanaSync
+    lambda_description: "Sync GitHub issues to Asana (using Zappa)"
+    apigateway_description: "Sync GitHub issues to Asana (using Zappa)"

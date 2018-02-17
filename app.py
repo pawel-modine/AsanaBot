@@ -5,34 +5,52 @@ import logging
 import os
 import os.path
 import secrets
+import urllib.parse
 
 import asana
-from flask import Flask, Response, jsonify, request
+from flask import (Flask, Response, jsonify, redirect, render_template_string,
+                   request, session, url_for)
 
 from sync import AsanaSync, IssueInfo
 
 app = Flask('asana-sync')
+app.secret_key = 'set this to something secret'
+app.logger.setLevel(logging.DEBUG)
+app.logger.addHandler(logging.StreamHandler())
 
 
 @app.route('/')
-def hello():
-    return 'Hello World!'
+def main_page():
+    token = session.get('token')
+    if token:
+        return 'Hello World!'
+    else:
+        return render_template_string('''
+<p><input type="button" class="btn btn-info" value="Input Button" onclick="location.href = '{{ auth_url }}';"></p>
+''', auth_url=url_for('github_login'))
 
 
-# GET http://github.com/login/oauth/authorize
-# client_id
-# redirect_uri
-# state
-# https://cy0fnpradk.execute-api.us-east-1.amazonaws.com/api/github/auth
+@app.route('/github/login')
+def github_login():
+    github_auth_url = 'http://github.com/login/oauth/authorize?'
+    query = {'client_id': 'Iv1.8c1199b7a74722cc',
+             'redirect_uri': request.url_root + 'github/auth',
+             'state': 'mystatehere'}
+    app.logger.debug('Redirect_uri: %s', request.url_root + 'github/auth')
+    return redirect(github_auth_url + urllib.parse.urlencode(query))
 
+#https://tbzpe7fgh3.execute-api.us-east-1.amazonaws.com/dev/github/auth
 
 @app.route('/github/auth')
 def github_auth():
+    app.logger.debug('In auth')
     return 'Handle authorization'
+
 
 @app.route('/github/setup')
 def github_setup():
     return 'Handle setup'
+
 
 @app.route('/hooks/github', methods=['POST'])
 def sync():

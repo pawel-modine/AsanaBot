@@ -77,7 +77,8 @@ class IssueInfo(_IssueInfo):
             fields['body'] = nested['body']
             if nested['assignee']:
                 fields['assignee'] = cls._get_user_name(nested['assignee'], api_headers)
-            elif 'requested_reviewers' in nested:
+            elif nested.get('requested_reviewers'):
+                logger.debug('Choosing from requested reviewers: %s', str(nested['requested_reviewers']))
                 pick = fields['number'] % len(nested['requested_reviewers'])
                 picked_user = nested['requested_reviewers'][pick]
                 fields['assignee'] = cls._get_user_name(picked_user, api_headers)
@@ -107,6 +108,8 @@ class AsanaSync:
     def find_workspace(self, org: str):
         """Find the Asana workspace to go with a GitHub organization."""
         org = org.lower()
+        if org == 'unidata':
+            org = 'unidata.ucar.edu'
         for workspace in self._client.workspaces.find_all():
             if workspace['name'].lower() == org:
                 return workspace
