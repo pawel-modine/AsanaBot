@@ -63,9 +63,9 @@ def sync():
         issue = IssueInfo.from_json(body, api_headers=headers)
         app.logger.debug('Handling issue: %s', issue)
         task = syncer.sync_issue(issue)
-    except ValueError:
+    except ValueError as e:
         app.logger.info('Unhandled json event type: %s', json.dumps(body)[:100])
-        task['message'] = 'Not an event for me.'
+        task['message'] = 'Not an event for me. ({})'.format(e)
     except UnauthorizedError as e:
         app.logger.debug('Handling unauthorized access.')
         return Response(str(e), 401)
