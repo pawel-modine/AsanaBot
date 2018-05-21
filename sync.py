@@ -108,8 +108,6 @@ class AsanaSync:
     def find_workspace(self, org: str):
         """Find the Asana workspace to go with a GitHub organization."""
         org = org.lower()
-        if org == 'unidata':
-            org = 'unidata.ucar.edu'
         for workspace in self._client.workspaces.find_all():
             if workspace['name'].lower() == org:
                 return workspace
