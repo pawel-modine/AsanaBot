@@ -9,7 +9,7 @@ import urllib.request
 from sync import get_asana_client
 
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 xmlns = {'atom': 'http://www.w3.org/2005/Atom'}
 s3 = boto3.resource('s3')
@@ -34,8 +34,8 @@ def check_stack_overflow(event, context):
         for question in root.iterfind('atom:entry', xmlns):
             update_time = question.find('atom:updated', xmlns).text
             if update_time > last_update:
-                logger.debug('Adding task for question: %s',
-                             question.find('atom:title', xmlns).text)
+                logger.info('Adding task for question: %s',
+                            question.find('atom:title', xmlns).text)
                 asana.submit(question, item)
 
         item['updated'] = root.find('atom:updated', xmlns).text
@@ -146,4 +146,4 @@ def question_to_id(question):
 
 
 if __name__ == '__main__':
-    check_stack_overflow()
+    check_stack_overflow(None, None)
