@@ -50,3 +50,22 @@ Resources:
 
   GitHubMessagePipe:
     Type: 'AWS::SNS::Topic'
+
+  StackOverflowChecker:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Runtime: python3.6
+      MemorySize: 128
+      Handler: stackoverflow.check_stack_overflow
+      CodeUri: _build/
+      Description: Sync Stack Overflow questions to Asana
+      Timeout: 120
+      Events:
+        Cron:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
+      Policies:
+        - S3CrudPolicy:
+            BucketName: 'unidata-python'
+
