@@ -22,7 +22,7 @@ def update_config(config):
     config_obj = s3.Object('unidata-python', 'asanabot/stackoverflow_config.json')
     config_obj.put(Body=json.dumps(config))
 
-def check_stack_overflow():
+def check_stack_overflow(event, context):
     asana = AsanaSubmit(get_asana_client())
     config = get_config()
 
