@@ -189,8 +189,15 @@ class AsanaSync:
 
         # Ok, it already exists or it's not worthy of a new issue. Try syncing...
         try:
-            task_id = self.find_task(issue)
+            task = self.find_task(issue)
+            task_id = task['id']
             logger.debug('Found task: %d', task_id)
+
+            # Check to see if this task was already assigned. If so, don't
+            # re-assign.
+            if task['assignee']:
+                sync_attrs.pop('assignee', None)
+
             task = self._client.tasks.update(task_id, sync_attrs)
 
             # If we completed, try to move to Done section
@@ -213,7 +220,7 @@ class AsanaSync:
     def find_task(self, issue):
         """Find task corresponding to the issue."""
         try:
-            return self._client.tasks.find_by_id('external:' + issue_to_id(issue))['id']
+            return self._client.tasks.find_by_id('external:' + issue_to_id(issue))
         except asana.error.NotFoundError as e:
             raise ValueError('No task found for issue.') from e
 
