@@ -1,0 +1,19 @@
+language: python
+sudo: false
+
+git:
+  depth: 1
+
+python:
+  - 3.6
+
+cache:
+  - pip
+
+install:
+  - mkdir ~/.aws
+  - echo [default] >> ~/.aws/config
+  - echo region=us-east-1 >> ~/.aws/config
+
+script:
+  - make deploy
