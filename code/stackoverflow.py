@@ -34,7 +34,7 @@ def check_stack_overflow(event, context):
         for question in root.iterfind('atom:entry', xmlns):
             update_time = question.find('atom:updated', xmlns).text
             if update_time > last_update:
-                logger.debug('Adding task for question:',
+                logger.debug('Adding task for question: %s',
                              question.find('atom:title', xmlns).text)
                 asana.submit(question, item)
 
