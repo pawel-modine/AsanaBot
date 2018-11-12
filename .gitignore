@@ -1,5 +1,8 @@
 .vscode
-asana-token
-env
 __pycache__
-.chalice
+_build/
+output.yml
+
+asana_token
+asana_client
+github_secret

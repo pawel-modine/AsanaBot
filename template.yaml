@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >-
+  Synchronize GitHub issue/pr events with Asana; feed events as they arrive
+  into a pipeline using a lambda, that then feeds out into other lambdas.
+
+Resources:
+  githubhook:
+    Type: 'AWS::Serverless::Function'
+    Properties: 
+      Runtime: python3.6
+      MemorySize: 128
+      Handler: event_handler.enqueue_event
+      CodeUri: code/event_handler.py
+      Description: >-
+        Validate GitHub events and push to SNS
+      Timeout: 5
+      Events:
+        Hook:
+          Type: Api
+          Properties:
+            Path: /hooks/github
+            Method: POST
+      Environment:
+        Variables:
+          SNS_TOPIC_NAME: !Ref GitHubMessagePipe
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt GitHubMessagePipe.TopicName
+        - S3ReadPolicy:
+            BucketName: 'unidata-python'
+
+  messagehandler:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Runtime: python3.6
+      MemorySize: 128
+      Handler: sync.process_payload
+      CodeUri: _build/
+      Description: Sync github messages to Asana
+      Timeout: 60
+      Events:
+        NewMessage:
+          Type: SNS
+          Properties:
+            Topic: !Ref GitHubMessagePipe
+      Policies:
+        - S3CrudPolicy:
+            BucketName: 'unidata-python'
+
+  GitHubMessagePipe:
+    Type: 'AWS::SNS::Topic'

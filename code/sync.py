@@ -1,58 +1,63 @@
 from collections import namedtuple
 from functools import lru_cache
 import json
+import logging
 import os
-import sys
 
 import asana
+import boto3
 import requests
 
-import logging
-logger = logging.Logger('sync')
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+s3 = boto3.resource('s3')
+
+def process_payload(event, context):
+    """Take the in-bound message and feed to syncing code."""
+    try:
+        asana_client = get_asana_client()
+    except Exception as e:
+        logger.exception('Error initializing Asana client:', exc_info=e)
+        raise
+
+    try:
+        logger.debug('Event: %s', event)
+        for record in event['Records']:
+            if record['EventSource'] == 'aws:sns':
+                body = json.loads(record['Sns']['Message'])
+                headers = {'Accept': 'application/vnd.github.machine-man-preview+json'}
+                issue = IssueInfo.from_json(body, api_headers=headers)
+                logger.debug('Handling issue: %s', issue)
+                syncer = AsanaSync(asana_client)
+                syncer.sync_issue(issue)
+    except ValueError as e:
+        logger.info('Unhandled json event type: %s', json.dumps(body)[:100])
+        logger.info('Not an event for me. ({})'.format(e))
+    except Exception as e:
+        logger.exception('Exception:', exc_info=e)
+        raise e
 
 def get_asana_client():
     """Handle the details of setting up OAUTH2 access to Asana."""
-    ASANA_CLIENT_ID = os.environ['ASANA_CLIENT_ID']
-    ASANA_SECRET_ID = os.environ['ASANA_CLIENT_SECRET']
-    token_file = 'asana-token'
+    creds_obj = s3.Object('unidata-python', 'asanabot/asana_client')
+    creds = json.loads(creds_obj.get()['Body'].read())
+
+    ASANA_CLIENT_ID = creds['ASANA_CLIENT_ID']
+    ASANA_SECRET_ID = creds['ASANA_CLIENT_SECRET']
+    token_key = 'asanabot/asana_token'
 
     def save_token(token):
-        with open(token_file, 'w') as fobj:
-            fobj.write(json.dumps(token))
+        token_obj = s3.Object('unidata-python', token_key)
+        token_obj.put(Body=json.dumps(token))
 
-    try:
-        with open(token_file, 'r') as fobj:
-            token = json.load(fobj)
-            return asana.Client.oauth(client_id=ASANA_CLIENT_ID, token=token,
-                                      auto_refresh_url='https://app.asana.com/-/oauth_token',
-                                      auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
-                                      token_updater=save_token)
-    except IOError:
-        asana_client = asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID,
-                                          redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-        url, state = asana_client.session.authorization_url()
+    token_obj = s3.Object('unidata-python', token_key)
+    token = json.loads(token_obj.get()['Body'].read())
 
-        print(url)
-        print("Copy and paste the returned code from the browser and press enter:")
-        code = sys.stdin.readline().strip()
-        token = asana_client.session.fetch_token(code=code)
-        save_token(token)
-        return asana.Client.oauth(client_id=ASANA_CLIENT_ID, token=token,
-                                  auto_refresh_url='https://app.asana.com/-/oauth_token',
-                                  auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
-                                  token_updater=save_token)
-
-
-def get_issues(org, repo):
-    """Get the relevant issues that need to be synced to Asana."""
-    org = github_client.get_organization(org)
-    repo = org.get_repo(repo)
-    for ind, issue in enumerate(repo.get_issues(state='all')):
-        yield issue
-        if ind > 1:
-            break
+    return asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID, token=token,
+                              auto_refresh_url='https://app.asana.com/-/oauth_token',
+                              auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
+                              token_updater=save_token, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
 
 
 _IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
@@ -145,8 +150,8 @@ class AsanaSync:
 
     @lru_cache()
     def find_done_section(self, project: int):
-        """Find the done section of a project if there is one"""
-        for section in self._client.projects.sections(project):
+        """Find the done section of a project if there is one."""
+        for section in self._client.sections.find_by_project(project):
             if section['name'].lower() == 'done':
                 return section['id']
         return None
@@ -174,8 +179,9 @@ class AsanaSync:
         logger.debug('Syncing attributes: %s', str(sync_attrs))
 
         # Create a new task if appropriate
+        create_new = should_make_new_task(issue)
         try:
-            if should_make_new_task(issue):
+            if create_new:
                 return self.create_task(workspace, project, issue, sync_attrs)
                 logger.debug('Created new task.')
         except asana.error.InvalidRequestError:  # Already exists
@@ -192,11 +198,13 @@ class AsanaSync:
                 done_section = self.find_done_section(project)
                 if done_section is not None:
                     self._client.tasks.add_project(task_id, {'project': project,
-                                                                'section': done_section})
+                                                             'section': done_section})
 
             return task
         except ValueError:
-            logger.error('Somehow could not find task for %d event though'
+            # Only an error in the event that it meets the criteria for creation
+            if create_new:
+                logger.error('Somehow could not find task for %d event though'
                             ' we think we had a duplicate.', issue.number)
 
         logger.debug('No task created.')
@@ -246,17 +254,3 @@ def should_make_new_task(issue):
 def issue_to_id(issue):
     """Create a unique id from an issue."""
     return '{0.organization}-{0.repository}-{0.number:d}'.format(issue)
-
-if __name__ == '__main__':
-    import github
-    syncer = AsanaSync(get_asana_client())
-    github_client = github.Github(os.environ.get('GITHUB_TOKEN'))
-
-    rate = github_client.get_rate_limit().rate
-    print('API calls remaining: {0} (Resets at {1})'.format(rate.remaining, rate.reset))
-
-    org = 'Unidata'
-    repo = 'MetPy'
-
-    for issue in get_issues(org, repo):
-        syncer.sync_issue(issue)
