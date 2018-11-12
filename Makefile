@@ -9,7 +9,7 @@ _build/: code/sync.py requirements.txt
 	mkdir _build
 	cp code/sync.py _build/
 	pip install -r requirements.txt -t _build
-	find _build -depth 1 -name '*.dist-info' -type d -print0 | xargs -0 rm -rf
+	find _build -maxdepth 1 -name '*.dist-info' -type d -print0 | xargs -0 rm -rf
 
 deploy_credentials: upload_github_secret upload_asana_tokens
 
