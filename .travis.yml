@@ -14,6 +14,7 @@ install:
   - mkdir ~/.aws
   - echo [default] >> ~/.aws/config
   - echo region=us-east-1 >> ~/.aws/config
+  - pip install awscli boto3
 
 script:
   - make deploy
