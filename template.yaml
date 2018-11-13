@@ -56,10 +56,6 @@ Resources:
 
   GitHubMessagePipe:
     Type: 'AWS::SNS::Topic'
-    Properties:
-      Tags:
-        Project: AsanaBot
-        Group: Python
 
   StackOverflowChecker:
     Type: 'AWS::Serverless::Function'
