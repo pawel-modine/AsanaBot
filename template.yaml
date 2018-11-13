@@ -7,7 +7,10 @@ Description: >-
 Resources:
   githubhook:
     Type: 'AWS::Serverless::Function'
-    Properties: 
+    Properties:
+      Tags:
+        Project: AsanaBot
+        Group: Python
       Runtime: python3.6
       MemorySize: 128
       Handler: event_handler.enqueue_event
@@ -33,6 +36,9 @@ Resources:
   messagehandler:
     Type: 'AWS::Serverless::Function'
     Properties:
+      Tags:
+        Project: AsanaBot
+        Group: Python
       Runtime: python3.6
       MemorySize: 128
       Handler: sync.process_payload
@@ -50,10 +56,17 @@ Resources:
 
   GitHubMessagePipe:
     Type: 'AWS::SNS::Topic'
+    Properties:
+      Tags:
+        Project: AsanaBot
+        Group: Python
 
   StackOverflowChecker:
     Type: 'AWS::Serverless::Function'
     Properties:
+      Tags:
+        Project: AsanaBot
+        Group: Python
       Runtime: python3.6
       MemorySize: 128
       Handler: stackoverflow.check_stack_overflow
