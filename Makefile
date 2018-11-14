@@ -1,7 +1,7 @@
 deploy: output.yml
 	aws cloudformation deploy --template-file output.yml --stack-name asanabot --capabilities CAPABILITY_IAM
 
-output.yml: code/event_handler.py _build/ template.yaml
+output.yml: code/githubhook.py _build/ template.yaml
 	aws cloudformation package --template-file template.yaml --s3-bucket unidata-python --s3-prefix=asanabot/upload --output-template-file output.yml
 
 _build/: code/sync.py code/stackoverflow.py requirements.txt

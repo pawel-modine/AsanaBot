@@ -13,8 +13,8 @@ Resources:
         Group: Python
       Runtime: python3.6
       MemorySize: 128
-      Handler: event_handler.enqueue_event
-      CodeUri: code/event_handler.py
+      Handler: githubhook.enqueue_event
+      CodeUri: code/githubhook.py
       Description: >-
         Validate GitHub events and push to SNS
       Timeout: 5
