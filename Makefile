@@ -14,7 +14,7 @@ _build/: code/sync.py code/stackoverflow.py requirements.txt
 deploy_credentials: upload_github_secret upload_asana_tokens
 
 upload_github_secret: github_secret
-	aws s3 cp github_secret s3://unidata-python/asanabot/github
+	aws ssm put-parameter --name /asanabot/GitHubToken --type SecureString --value `cat github_secret`
 
 upload_asana_tokens: asana_client asana_token
 	aws s3 cp asana_client s3://unidata-python/asanabot/asana_client

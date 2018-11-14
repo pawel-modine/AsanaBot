@@ -10,6 +10,8 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+ssm = boto3.client('ssm')
+
 def enqueue_event(event, context):
     """Handle getting an event from GitHub and putting it into the pipeline."""
     try:
@@ -38,10 +40,10 @@ def check_signature(headers, body):
         raise UnauthorizedError('Missing X-Hub-Signature header.')
 
     alg, header_sig = headers['X-Hub-Signature'].split('=')
-    s3 = boto3.resource('s3')
-    secret_key = s3.Object('unidata-python', 'asanabot/github')
-    digest = hmac.HMAC(secret_key.get()['Body'].read(),
-                       body.encode('utf-8'), digestmod=getattr(hashlib, alg))
+    secret_key = ssm.get_parameter(Name='/asanabot/GitHubToken',
+                                   WithDecryption=True)['Parameter']['Value']
+    digest = hmac.HMAC(secret_key.encode('ascii'), body.encode('utf-8'),
+                       digestmod=getattr(hashlib, alg))
     sig = digest.hexdigest()
     logger.debug('Comparing signatures. Got: %s Calculated: %s', header_sig, sig)
 

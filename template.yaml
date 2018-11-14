@@ -32,6 +32,12 @@ Resources:
             TopicName: !GetAtt GitHubMessagePipe.TopicName
         - S3ReadPolicy:
             BucketName: 'unidata-python'
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                 - 'ssm:GetParameter'
+              Resource: 'arn:aws:ssm:*:*:parameter/asanabot/GitHubToken'
 
   messagehandler:
     Type: 'AWS::Serverless::Function'
