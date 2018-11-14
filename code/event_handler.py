@@ -10,6 +10,7 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+sns = boto3.client('sns')
 ssm = boto3.client('ssm')
 
 def enqueue_event(event, context):
@@ -20,8 +21,7 @@ def enqueue_event(event, context):
         body = event['body']
         logger.debug('Body: %s', body)
         check_signature(headers, body)
-        topic = boto3.session.Session().resource('sns').Topic(os.environ['SNS_TOPIC_NAME'])
-        msg = topic.publish(Message=body)
+        msg = sns.publish(TopicArn=os.environ['SNS_TOPIC_NAME'], Message=body)
     except UnauthorizedError as e:
         logger.debug('Handling unauthorized access.')
         return dict(statusCode=401, headers={'Content-Type': 'application/json'},
