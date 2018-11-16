@@ -9,7 +9,7 @@ import boto3
 import requests
 
 logger = logging.getLogger('asanabot')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 s3 = boto3.resource('s3')
 
@@ -25,7 +25,7 @@ def process_payload(event, context):
         logger.debug('Event: %s', event)
         for record in event['Records']:
             if record['EventSource'] == 'aws:sns':
-                logger.info('Received: %s', record['Sns'])
+                logger.info('Received: %s', record['Sns']['MessageId'])
                 body = json.loads(record['Sns']['Message'])
                 headers = {'Accept': 'application/vnd.github.machine-man-preview+json'}
                 issue = IssueInfo.from_json(body, api_headers=headers)
