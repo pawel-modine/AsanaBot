@@ -182,23 +182,23 @@ class AsanaSync:
         create_new = should_make_new_task(issue)
         try:
             if create_new:
-                return self.create_task(workspace, project, issue, sync_attrs)
-                logger.debug('Created new task.')
+                task = self.create_task(workspace, project, issue, sync_attrs)
+                logger.info('Created new task: %s', task)
+                return task
         except asana.error.InvalidRequestError:  # Already exists
             pass
 
         # Ok, it already exists or it's not worthy of a new issue. Try syncing...
         try:
             task = self.find_task(issue)
-            task_id = task['id']
-            logger.debug('Found task: %d', task_id)
+            logger.info('Found task: %s', task)
 
             # Check to see if this task was already assigned. If so, don't
             # re-assign.
             if task['assignee']:
                 sync_attrs.pop('assignee', None)
 
-            task = self._client.tasks.update(task_id, sync_attrs)
+            task = self._client.tasks.update(task['id'], sync_attrs)
 
             # If we completed, try to move to Done section
             if sync_attrs['completed']:
