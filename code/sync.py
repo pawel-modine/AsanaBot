@@ -255,7 +255,9 @@ def should_make_new_task(issue):
         return issue.milestoned
 
     # Not a PR, not assigned, and no milestones--so ignore it
-    return False
+    # return False
+    # For now, create new tasks as long as it's not closed/merged
+    return True
 
 
 def issue_to_id(issue):
