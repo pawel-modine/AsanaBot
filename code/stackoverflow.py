@@ -8,7 +8,7 @@ import urllib.request
 
 from sync import get_asana_client
 
-logger = logging.getLogger()
+logger = logging.getLogger('asanabot')
 logger.setLevel(logging.INFO)
 
 xmlns = {'atom': 'http://www.w3.org/2005/Atom'}

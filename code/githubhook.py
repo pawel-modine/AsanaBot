@@ -1,13 +1,12 @@
 import hashlib
 import hmac
-import json
 import logging
 import os
 import secrets
 
 import boto3
 
-logger = logging.getLogger()
+logger = logging.getLogger('asanabot')
 logger.setLevel(logging.INFO)
 
 sns = boto3.client('sns')

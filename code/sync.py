@@ -8,7 +8,7 @@ import asana
 import boto3
 import requests
 
-logger = logging.getLogger()
+logger = logging.getLogger('asanabot')
 logger.setLevel(logging.INFO)
 
 s3 = boto3.resource('s3')
