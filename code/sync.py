@@ -25,6 +25,7 @@ def process_payload(event, context):
         logger.debug('Event: %s', event)
         for record in event['Records']:
             if record['EventSource'] == 'aws:sns':
+                logger.info('Received: %s', record['Sns'])
                 body = json.loads(record['Sns']['Message'])
                 headers = {'Accept': 'application/vnd.github.machine-man-preview+json'}
                 issue = IssueInfo.from_json(body, api_headers=headers)

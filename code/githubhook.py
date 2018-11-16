@@ -21,6 +21,7 @@ def enqueue_event(event, context):
         logger.debug('Body: %s', body)
         check_signature(headers, body)
         msg = sns.publish(TopicArn=os.environ['SNS_TOPIC_NAME'], Message=body)
+        logger.info('Published as: %d', msg['MessageId'])
     except UnauthorizedError as e:
         logger.debug('Handling unauthorized access.')
         return dict(statusCode=401, headers={'Content-Type': 'application/json'},
