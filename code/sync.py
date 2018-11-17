@@ -255,8 +255,8 @@ def should_make_new_task(issue):
         return True
 
     # If the repo has milestones, look at whether this issue has one assigned
-    if issue.repo_has_milestones:
-        return issue.milestoned
+    # if issue.repo_has_milestones:
+    #     return issue.milestoned
 
     # Not a PR, not assigned, and no milestones--so ignore it
     # return False
