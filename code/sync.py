@@ -181,14 +181,15 @@ class AsanaSync:
 
         # Create a new task if appropriate
         create_new = should_make_new_task(issue)
+        logger.debug('Should we create a new task: %s', create_new)
         try:
             if create_new:
                 logger.debug('Trying to create a new task...')
                 task = self.create_task(workspace, project, issue, sync_attrs)
                 logger.info('Created new task: %s', task)
                 return
-        except asana.error.InvalidRequestError:  # Already exists
-            pass
+        except asana.error.InvalidRequestError as e:  # Already exists
+            logger.exception('Invalid request creating task (likely dupe): %s', e)
 
         # Ok, it already exists or it's not worthy of a new issue. Try syncing...
         try:
