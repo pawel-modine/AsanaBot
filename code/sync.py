@@ -183,9 +183,10 @@ class AsanaSync:
         create_new = should_make_new_task(issue)
         try:
             if create_new:
+                logger.debug('Trying to create a new task...')
                 task = self.create_task(workspace, project, issue, sync_attrs)
                 logger.info('Created new task: %s', task)
-                return task
+                return
         except asana.error.InvalidRequestError:  # Already exists
             pass
 
@@ -200,15 +201,17 @@ class AsanaSync:
                 sync_attrs.pop('assignee', None)
 
             task = self._client.tasks.update(task['id'], sync_attrs)
+            logger.debug('Updated task.')
 
             # If we completed, try to move to Done section
             if sync_attrs['completed']:
                 done_section = self.find_done_section(project)
                 if done_section is not None:
-                    self._client.tasks.add_project(task_id, {'project': project,
-                                                             'section': done_section})
+                    self._client.tasks.add_project(task['id'], {'project': project,
+                                                                'section': done_section})
+                    logger.debug('Moved to completed column.')
 
-            return task
+            return
         except ValueError:
             # Only an error in the event that it meets the criteria for creation
             if create_new:
@@ -216,7 +219,6 @@ class AsanaSync:
                             ' we think we had a duplicate.', issue.number)
 
         logger.debug('No task created.')
-        return {'message': 'No existing task and no new one needed at this time.'}
 
     def find_task(self, issue):
         """Find task corresponding to the issue."""
