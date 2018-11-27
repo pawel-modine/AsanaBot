@@ -1,0 +1,65 @@
+<html>
+<head>
+    <script type="text/javascript">
+    // Get our user
+    var userId = null;
+    var token = safari.extension.secureSettings.asana_token;
+    var user_req = new XMLHttpRequest();
+    user_req.open("Get", "https://app.asana.com/api/1.0/users/me", true);
+    user_req.setRequestHeader("Authorization", "Bearer " + token);
+
+    user_req.onload = function() {
+        user_obj = JSON.parse(this.responseText);
+        userId = user_obj["data"]["gid"];
+    }
+    user_req.send();
+
+    // Function for getting information about the workspace
+    var lastWorkspace = null;
+    var workspaceId = null;
+    function updateWorkspace() {
+        var token = safari.extension.secureSettings.asana_token;
+        if (workspaceId === null || lastWorkspace !== safari.extension.settings.workspace) {
+            var workspace_req = new XMLHttpRequest();
+            workspace_req.open("GET", "https://app.asana.com/api/1.0/workspaces", true);
+            workspace_req.setRequestHeader("Authorization", "Bearer " + token);
+            workspace_req.onload = function() {
+                workspace_obj = JSON.parse(this.responseText);
+                workspace_obj["data"].forEach(element => {
+                    if (element["name"] === safari.extension.settings.workspace) {
+                        lastWorkspace = safari.extension.settings.workspace;
+                        workspaceId = element["gid"];
+                    }
+                });
+            }
+            workspace_req.send();
+        }
+    }
+    updateWorkspace();
+
+    // Callback for button click
+    function doAdd(event) {
+        updateWorkspace();
+        var token = safari.extension.secureSettings.asana_token;
+        var tab = safari.application.activeBrowserWindow.activeTab;
+        var elements = ["name=" + encodeURI(tab.title),
+                        "notes=" + encodeURIComponent(tab.url),
+                        "workspace=" + workspaceId,
+                        "assignee=" + userId]
+
+        var data = elements.join("&");
+
+        xhttp = new XMLHttpRequest();
+        xhttp.open("POST", "https://app.asana.com/api/1.0/tasks", true);
+        xhttp.setRequestHeader("Authorization", "Bearer " + token);
+        xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+        xhttp.send(data);
+    }
+
+    // Register our callback
+    safari.application.addEventListener("command", doAdd, false);
+
+    </script>
+</head>
+</html>
