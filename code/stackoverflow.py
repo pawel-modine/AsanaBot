@@ -104,7 +104,7 @@ class AsanaSubmit:
         try:
             task = self.find_task(question)
             task_id = task['id']
-            logger.debug('Found task: %d', task_id)
+            logger.debug('Found task: %s', task_id)
 
             # Check to see if this task was already assigned. If so, don't
             # re-assign.
@@ -114,8 +114,8 @@ class AsanaSubmit:
             task = self._client.tasks.update(task_id, sync_attrs)
         except ValueError:
             # Only an error in the event that it meets the criteria for creation
-            logger.error('Somehow could not find task for %d event though'
-                        ' we think we had a duplicate.', question)
+            logger.error('Somehow could not find task for %s event though'
+                        ' we think we had a duplicate.', str(question))
 
         logger.debug('No task created.')
 
