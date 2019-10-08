@@ -11,7 +11,7 @@ Resources:
       Tags:
         Project: AsanaBot
         Group: Python
-      Runtime: python3.6
+      Runtime: python3.7
       MemorySize: 128
       Handler: githubhook.enqueue_event
       CodeUri: code/githubhook.py
@@ -45,7 +45,7 @@ Resources:
       Tags:
         Project: AsanaBot
         Group: Python
-      Runtime: python3.6
+      Runtime: python3.7
       MemorySize: 128
       Handler: sync.process_payload
       CodeUri: _build/
@@ -69,7 +69,7 @@ Resources:
       Tags:
         Project: AsanaBot
         Group: Python
-      Runtime: python3.6
+      Runtime: python3.7
       MemorySize: 128
       Handler: stackoverflow.check_stack_overflow
       CodeUri: _build/
