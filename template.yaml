@@ -30,8 +30,6 @@ Resources:
       Policies:
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt GitHubMessagePipe.TopicName
-        - S3ReadPolicy:
-            BucketName: 'unidata-python'
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
