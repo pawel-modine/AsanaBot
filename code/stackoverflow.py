@@ -14,17 +14,24 @@ logger.setLevel(logging.INFO)
 xmlns = {'atom': 'http://www.w3.org/2005/Atom'}
 s3 = boto3.resource('s3')
 
-def get_config():
-    config_obj = s3.Object('unidata-python', 'asanabot/stackoverflow_config.json')
-    return json.loads(config_obj.get()['Body'].read())
+class Config:
+    def __init__(self):
+        self._obj = s3.Object('unidata-python', 'asanabot/stackoverflow_config.json')
+        self._data = json.loads(self._obj.get()['Body'].read())
 
-def update_config(config):
-    config_obj = s3.Object('unidata-python', 'asanabot/stackoverflow_config.json')
-    config_obj.put(Body=json.dumps(config))
+    def __iter__(self):
+        return iter(self._data)
+
+    def save(self):
+        self._obj.put(Body=json.dumps(self._data))
+
+
+# Use a global to keep it cached
+config = Config()
+
 
 def check_stack_overflow(event, context):
     asana = AsanaSubmit(get_asana_client())
-    config = get_config()
 
     for item in config:
         xml = urllib.request.urlopen('https://stackoverflow.com/feeds/tag?tagnames={}&sort=newest'.format(item['tag']))
@@ -40,7 +47,7 @@ def check_stack_overflow(event, context):
 
         item['updated'] = root.find('atom:updated', xmlns).text
 
-    update_config(config)
+    config.save()
 
 
 class AsanaSubmit:
@@ -101,7 +108,7 @@ class AsanaSubmit:
         project = project['gid']
 
         sync_attrs = {}
-        sync_attrs['assignee'] = self.find_asana_user(self.unidata, config["owner"])
+        sync_attrs['assignee'] = self.find_asana_user(self.unidata, config['owner'])
         sync_attrs['completed'] = False
 
         logger.debug('Syncing attributes: %s', str(sync_attrs))
