@@ -140,7 +140,7 @@ class AsanaSync:
         else:  # Did not find one
             tag = self._client.tags.create_in_workspace(workspace, dict(name=tag_name))
 
-        return tag['id']
+        return tag['gid']
 
     @lru_cache()
     def github_to_asana_user(self, workspace: int, github_user: str):
@@ -155,7 +155,7 @@ class AsanaSync:
         """Find the done section of a project if there is one."""
         for section in self._client.sections.find_by_project(project):
             if section['name'].lower() == 'done':
-                return section['id']
+                return section['gid']
         return None
 
     def sync_issue(self, issue: IssueInfo):
@@ -167,8 +167,8 @@ class AsanaSync:
         org = issue.organization
 
         logger.debug('Syncing for %s/%s', org, repo)
-        workspace = self.find_workspace(org)['id']
-        project = self.find_project(workspace, repo)['id']
+        workspace = self.find_workspace(org)['gid']
+        project = self.find_project(workspace, repo)['gid']
 
         sync_attrs = {}
         if issue.assignee:
@@ -202,15 +202,15 @@ class AsanaSync:
             if task['assignee']:
                 sync_attrs.pop('assignee', None)
 
-            task = self._client.tasks.update(task['id'], sync_attrs)
+            task = self._client.tasks.update(task['gid'], sync_attrs)
             logger.debug('Updated task.')
 
             # If we completed, try to move to Done section
             if sync_attrs['completed']:
                 done_section = self.find_done_section(project)
                 if done_section is not None:
-                    self._client.tasks.add_project(task['id'], {'project': project,
-                                                                'section': done_section})
+                    self._client.tasks.add_project(task['gid'], {'project': project,
+                                                                 'section': done_section})
                     logger.debug('Moved to completed column.')
 
             return
@@ -232,7 +232,7 @@ class AsanaSync:
     def create_task(self, workspace: int, project: int, issue, attrs: dict):
         """Create a task corresponding to a GitHub issue."""
         github_tag = self.find_github_tag(workspace)
-        params = {'external': {'id': issue_to_id(issue)},
+        params = {'external': {'gid': issue_to_id(issue)},
                   'name': '{0.title} (#{0.number})'.format(issue),
                   'notes': '\n\n'.join((issue.html_url, issue.body)),
                   'projects': [project],
