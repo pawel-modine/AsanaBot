@@ -55,11 +55,12 @@ def get_asana_client():
     token_obj = s3.Object('unidata-python', token_key)
     token = json.loads(token_obj.get()['Body'].read())
 
-    return asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID, token=token,
-                              auto_refresh_url='https://app.asana.com/-/oauth_token',
-                              auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
-                              token_updater=save_token, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-
+    client = asana.Client.oauth(client_id=ASANA_CLIENT_ID, client_secret=ASANA_SECRET_ID, token=token,
+                                auto_refresh_url='https://app.asana.com/-/oauth_token',
+                                auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
+                                token_updater=save_token, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+    client.headers={'asana-enable': 'string_ids,new_sections'}
+    return client
 
 _IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
                                       'title', 'state', 'milestoned', 'assignee',
