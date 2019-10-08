@@ -46,14 +46,36 @@ def check_stack_overflow(event, context):
 class AsanaSubmit:
     def __init__(self, client):
         self._client = client
+        self._unidata_gid = None
+        self._tag_gid = None
 
-    def find_unidata(self):
-        """Find the Unidata Asana workspace."""
-        for workspace in self._client.workspaces.find_all():
-            if workspace['name'] == 'Unidata':
-                return workspace
-        else:
-            raise ValueError('Could not find workspace for Unidata.')
+    @property
+    def unidata(self):
+        """The Unidata Asana workspace gid."""
+        if self._unidata_gid is None:
+            for workspace in self._client.workspaces.find_all():
+                if workspace['name'] == 'Unidata':
+                    self._unidata_gid = workspace['gid']
+                    logger.debug('Found Unidata workspace: %s', workspace)
+                    break
+            else:
+                raise ValueError('Could not find workspace for Unidata.')
+        return self._unidata_gid
+
+    @property
+    def stackoverflow_tag(self):
+        """Find the StackOverflow tag on Asana."""
+        if self._tag_gid is None:
+            tag_name = 'StackOverflow'
+            for tag in self._client.tags.find_by_workspace(self.unidata):
+                if tag['name'].lower() == tag_name.lower():
+                    self._tag_gid = tag['gid']
+                    break
+            else:  # Did not find one
+                tag = self._client.tags.create_in_workspace(workspace, dict(name=tag_name))
+                self._tag_gid = tag['gid']
+
+        return self._tag_gid
 
     def find_project(self, workspace: int, name: str):
         """Find a project by name."""
@@ -61,17 +83,6 @@ class AsanaSubmit:
             if project['name'] == name:
                 return project
         raise ValueError('Could not find appropriate project for: {}'.format(name))
-
-    def find_stackoverflow_tag(self, workspace: int):
-        """Find the StackOverflow tag on Asana."""
-        tag_name = 'StackOverflow'
-        for tag in self._client.tags.find_by_workspace(workspace):
-            if tag['name'].lower() == tag_name.lower():
-                break
-        else:  # Did not find one
-            tag = self._client.tags.create_in_workspace(workspace, dict(name=tag_name))
-
-        return tag['id']
 
     def find_asana_user(self, workspace: int, name: str):
         """Find an asana user by name."""
@@ -85,39 +96,40 @@ class AsanaSubmit:
 
         Either create a new task or update attributes of existing task.
         """
-        workspace = self.find_unidata()['id']
-        project = self.find_project(workspace, config['project'])['id']
+        project = self.find_project(self.unidata, config['project'])
+        logger.debug('Got project for %s: %s', config['project'], project)
+        project = project['gid']
 
         sync_attrs = {}
-        sync_attrs['assignee'] = self.find_asana_user(workspace, config["owner"])
+        sync_attrs['assignee'] = self.find_asana_user(self.unidata, config["owner"])
         sync_attrs['completed'] = False
 
         logger.debug('Syncing attributes: %s', str(sync_attrs))
 
         try:
-            return self.create_task(workspace, project, question, sync_attrs)
-            logger.debug('Created new task.')
-        except asana.error.InvalidRequestError:  # Already exists
-            pass
+            return self.create_task(self.unidata, project, question, sync_attrs)
+        except asana.error.InvalidRequestError as e:  # Already exists
+            logger.debug('Error from creating task: %s', e)
 
-        # Ok, it already exists or it's not worthy of a new issue. Try syncing...
+        # Ok, it already exists or an error occurred. Try syncing...
         try:
             task = self.find_task(question)
-            task_id = task['id']
+            task_id = task['gid']
             logger.debug('Found task: %s', task_id)
 
-            # Check to see if this task was already assigned. If so, don't
-            # re-assign.
-            if task['assignee']:
+            # Check to see if this task was already assigned and is not closed.
+            # If so, don't re-assign.
+            if task['assignee'] and not task['completed']:
                 sync_attrs.pop('assignee', None)
 
-            task = self._client.tasks.update(task_id, sync_attrs)
-        except ValueError:
+            return self._client.tasks.update(task_id, sync_attrs)
+        except ValueError as e:
             # Only an error in the event that it meets the criteria for creation
-            logger.error('Somehow could not find task for %s event though'
-                        ' we think we had a duplicate.', str(question))
-
-        logger.debug('No task created.')
+            logger.exception('Somehow could not find task for %s event though'
+                             ' we think we had a duplicate.', question_to_id(question),
+                             exc_info=e)
+        except Exception as e:
+            logger.exception('Something else went wrong.', exc_info=e)
 
     def find_task(self, question):
         """Find task corresponding to the issue."""
@@ -128,19 +140,18 @@ class AsanaSubmit:
 
     def create_task(self, workspace: int, project: int, question, attrs: dict):
         """Create a task corresponding to a GitHub issue."""
-        tag = self.find_stackoverflow_tag(workspace)
         title = question.find('atom:title', xmlns).text
-        params = {'external': {'id': question_to_id(question)},
+        params = {'external': {'gid': question_to_id(question)},
                   'name': title,
                   'notes': '\n\n'.join((question.find('atom:id', xmlns).text,
                                         question.find('atom:summary', xmlns).text)),
                   'projects': [project],
-                  'tags': [tag]}
+                  'tags': [self.stackoverflow_tag]}
         params.update(attrs)
         return self._client.tasks.create_in_workspace(workspace, params)
 
 def question_to_id(question):
-    """Create a unique id from a question."""
+    """Create a unique gid from a question."""
     _, question_id = question.find('atom:id', xmlns).text.rsplit('/', maxsplit=1)
     return 'stackoverflow-{}'.format(question_id)
 
