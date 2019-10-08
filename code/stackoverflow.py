@@ -34,7 +34,7 @@ def check_stack_overflow(event, context):
     asana = AsanaSubmit(get_asana_client())
 
     for item in config:
-        xml = urllib.request.urlopen('https://stackoverflow.com/feeds/tag?tagnames={}&sort=newest'.format(item['tag']))
+        xml = urllib.request.urlopen(f'https://stackoverflow.com/feeds/tag?tagnames={item["tag"]}&sort=newest')
         content = xml.read()
         root = ET.fromstring(content)
         last_update = item['updated']
@@ -89,7 +89,7 @@ class AsanaSubmit:
         for project in self._client.projects.find_all({'workspace': workspace}):
             if project['name'] == name:
                 return project
-        raise ValueError('Could not find appropriate project for: {}'.format(name))
+        raise ValueError(f'Could not find appropriate project for: {name}')
 
     def find_asana_user(self, workspace: int, name: str):
         """Find an asana user by name."""
@@ -160,7 +160,7 @@ class AsanaSubmit:
 def question_to_id(question):
     """Create a unique gid from a question."""
     _, question_id = question.find('atom:id', xmlns).text.rsplit('/', maxsplit=1)
-    return 'stackoverflow-{}'.format(question_id)
+    return f'stackoverflow-{question_id}'
 
 
 if __name__ == '__main__':
