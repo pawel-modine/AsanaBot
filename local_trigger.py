@@ -10,13 +10,14 @@ sns = boto3.client('sns')
 
 with open('/Users/rmay/repos/github-utils/token', 'rt') as f:
     token = f.readline()[:-1]
-g = github.Github()
+g = github.Github(token)
 
 unidata = g.get_organization('Unidata')
 
 for repo_name in ['MetPy', 'siphon', 'python-gallery', 'python-workshop']:
-    repo = unidata.get_repo('python-workshop')
-    for issue in repo.get_issues(state='all', since=datetime(2019, 8, 1)):
+    repo = unidata.get_repo(repo_name)
+    print(repo)
+    for issue in repo.get_issues(state='all', since=datetime(2019, 10, 1)):
         print(f'Syncing {issue.number}...', end='')
         payload = dict(repository=repo.raw_data, organization=unidata.raw_data,
                        issue=issue.raw_data)
