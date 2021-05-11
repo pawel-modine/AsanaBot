@@ -205,14 +205,6 @@ class AsanaSync:
             task = self._client.tasks.update(task['gid'], sync_attrs)
             logger.debug('Updated task.')
 
-            # If we completed, try to move to Done section
-            if sync_attrs['completed']:
-                done_section = self.find_done_section(project)
-                if done_section is not None:
-                    self._client.tasks.add_project(task['gid'], {'project': project,
-                                                                 'section': done_section})
-                    logger.debug('Moved to completed column.')
-
             return
         except ValueError:
             # Only an error in the event that it meets the criteria for creation
