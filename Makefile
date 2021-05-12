@@ -8,7 +8,7 @@ _build/: code/sync.py code/stackoverflow.py requirements.txt
 	rm -rf _build
 	mkdir _build
 	cp code/sync.py code/stackoverflow.py _build/
-	pip install -r requirements.txt -t _build
+	python -m pip install -r requirements.txt -t _build
 	find _build -maxdepth 1 -name '*.dist-info' -type d -print0 | xargs -0 rm -rf
 
 deploy_credentials: upload_github_secret upload_asana_tokens
