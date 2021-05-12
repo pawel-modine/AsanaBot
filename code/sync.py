@@ -63,7 +63,7 @@ def get_asana_client():
     return client
 
 _IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
-                                      'title', 'state', 'milestoned', 'assignee',
+                                      'title', 'state', 'action', 'milestoned', 'assignee',
                                       'is_pr', 'html_url', 'body', 'repo_has_milestones'])
 class IssueInfo(_IssueInfo):
     @classmethod
@@ -74,6 +74,7 @@ class IssueInfo(_IssueInfo):
             fields['repository'] = json['repository']['name']
             fields['repo_has_milestones'] = cls._check_for_milestones(json['repository'],
                                                                       api_headers)
+            fields['action'] = json['action']
             fields['is_pr'] = 'pull_request' in json
             nested = json['pull_request'] if fields['is_pr'] else json['issue']
             fields['number'] = nested['number']
@@ -201,6 +202,12 @@ class AsanaSync:
             # re-assign.
             if task['assignee']:
                 sync_attrs.pop('assignee', None)
+
+            # If the task was already completed, only set it back to not completed
+            # if the event indicates it's back to being worked on.
+            if task['completed'] and not sync_attrs['completed']:
+                sync_attrs['completed'] = issue.action not in ('opened', 'assigned',
+                                                               'reopened', 'ready_for_review')
 
             task = self._client.tasks.update(task['gid'], sync_attrs)
             logger.debug('Updated task.')
