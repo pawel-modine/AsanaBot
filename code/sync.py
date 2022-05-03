@@ -59,7 +59,7 @@ def get_asana_client():
                                 auto_refresh_url='https://app.asana.com/-/oauth_token',
                                 auto_refresh_kwargs={'client_id': ASANA_CLIENT_ID, 'client_secret': ASANA_SECRET_ID},
                                 token_updater=save_token, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-    client.headers={'asana-enable': 'string_ids,new_sections'}
+    client.headers={'asana-enable': 'string_ids,new_sections,new_user_task_lists,new_project_templates'}
     return client
 
 _IssueInfo = namedtuple('IssueInfo', ['number', 'organization', 'repository',
