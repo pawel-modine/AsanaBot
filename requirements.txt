@@ -1,2 +1,2 @@
-asana==0.9.1
-requests==2.20.1
+asana==0.10.13
+requests==2.27.1
