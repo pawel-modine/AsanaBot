@@ -10,6 +10,9 @@ _build/: code/sync.py code/stackoverflow.py requirements.txt
 	cp code/sync.py code/stackoverflow.py _build/
 	python -m pip install -r requirements.txt -t _build
 	find _build -maxdepth 1 -name '*.dist-info' -type d -print0 | xargs -0 rm -rf
+	# urllib3 and six are included in the default env due to boto
+	find _build -maxdepth 1 -name urllib3 -type d -print0 | xargs -0 rm -rf
+	find _build -maxdepth 1 -name six.py -type f -delete
 
 deploy_credentials: upload_github_secret upload_asana_tokens
 
