@@ -34,7 +34,9 @@ def check_stack_overflow(event, context):
     asana = AsanaSubmit(get_asana_client())
 
     for item in config:
-        xml = urllib.request.urlopen(f'https://stackoverflow.com/feeds/tag?tagnames={item["tag"]}&sort=newest')
+        url = f'https://stackoverflow.com/feeds/tag?tagnames={item["tag"]}&sort=newest'
+        req = urllib.request.Request(url, headers={'User-Agent': 'Asanabot'})
+        xml = urllib.request.urlopen(req)
         content = xml.read()
         root = ET.fromstring(content)
         last_update = item['updated']
